@@ -2,6 +2,12 @@ import json
 import os
 import streamlit as st
 
+def calcular_bmr(sexo, peso, altura, edad):
+    if sexo == "Hombre":
+        return 10*peso + 6.25*altura - 5*edad + 5
+    else:
+        return 10*peso + 6.25*altura - 5*edad - 161
+        
 def load_users():
     if os.path.exists("users.json"):
         with open("users.json","r") as f:
@@ -11,6 +17,16 @@ def load_users():
 def save_users(users):
     with open("users.json","w") as f:
         json.dump(users,f)
+
+def load_profiles():
+    if os.path.exists("profiles.json"):
+        with open("profiles.json","r") as f:
+            return json.load(f)
+    return {}
+
+def save_profiles(data):
+    with open("profiles.json","w") as f:
+        json.dump(data,f)
         
 st.set_page_config(page_title="Mis Macros")
 
@@ -55,6 +71,57 @@ elif menu == "Dashboard":
     if "user" not in st.session_state:
         st.warning("Debes iniciar sesión")
     else:
-        st.header("Dashboard")
-        st.write("Usuario:", st.session_state["user"])
-        st.write("Aquí aparecerán tus macros")
+
+        profiles = load_profiles()
+        user = st.session_state["user"]
+
+        st.header("Tu perfil")
+
+        sexo = st.selectbox("Sexo", ["Hombre","Mujer"])
+        edad = st.number_input("Edad", 10, 100)
+        peso = st.number_input("Peso (kg)", 30.0, 200.0)
+        altura = st.number_input("Altura (cm)", 120, 220)
+
+        actividad = st.selectbox(
+            "Nivel de actividad",
+            ["Sedentario","Ligero","Moderado","Alto"]
+        )
+
+        if st.button("Guardar perfil"):
+
+            bmr = calcular_bmr(sexo,peso,altura,edad)
+
+            factores = {
+                "Sedentario":1.2,
+                "Ligero":1.375,
+                "Moderado":1.55,
+                "Alto":1.725
+            }
+
+            calorias = bmr * factores[actividad]
+
+            proteinas = peso * 2
+            grasas = peso * 0.8
+            carbs = (calorias - (proteinas*4 + grasas*9)) / 4
+
+            profiles[user] = {
+                "calorias": round(calorias),
+                "proteinas": round(proteinas),
+                "grasas": round(grasas),
+                "carbs": round(carbs)
+            }
+
+            save_profiles(profiles)
+
+            st.success("Perfil guardado")
+
+        if user in profiles:
+
+            p = profiles[user]
+
+            st.subheader("Tus objetivos diarios")
+
+            st.write("Calorías:", p["calorias"])
+            st.write("Proteínas:", p["proteinas"],"g")
+            st.write("Grasas:", p["grasas"],"g")
+            st.write("Carbohidratos:", p["carbs"],"g")
