@@ -97,93 +97,89 @@ elif menu == "Dashboard":
 
         users = load_users()
 
-        if "profile" not in users[user]:
-            st.warning("Primero completa tu perfil")
+        profile = users[user]
+
+        peso = profile["peso"]
+        altura = profile["altura"]
+        edad = profile["edad"]
+        sexo = profile["sexo"]
+        actividad = profile["actividad"]
+
+        # Cargar datos de alimentos y diario
+        foods = load_foods()
+        diary = load_diary()
+
+        total_kcal = 0
+        total_p = 0
+        total_g = 0
+        total_c = 0
+        total_f = 0
+
+        # Sumar alimentos del diario
+        if user in diary:
+
+            for item in diary[user]:
+
+                f = foods[item["food"]]
+                q = item["cantidad"]
+
+                total_kcal += f["calorias"] * q
+                total_p += f["proteinas"] * q
+                total_g += f["grasas"] * q
+                total_c += f["carbs"] * q
+                total_f += f["fibra"] * q
+
+        # Calcular metabolismo basal (Mifflin St Jeor)
+
+        if sexo == "Hombre":
+            bmr = 10*peso + 6.25*altura - 5*edad + 5
         else:
+            bmr = 10*peso + 6.25*altura - 5*edad - 161
 
-            profile = users[user]["profile"]
+        # Factor de actividad
 
-            peso = profile["peso"]
-            altura = profile["altura"]
-            edad = profile["edad"]
-            sexo = profile["sexo"]
-            actividad = profile["actividad"]
+        factores = {
+            "Sedentario":1.2,
+            "Ligero":1.375,
+            "Moderado":1.55,
+            "Activo":1.725,
+            "Muy activo":1.9
+        }
 
-            # Cargar datos de alimentos y diario
-            foods = load_foods()
-            diary = load_diary()
+        tdee = bmr * factores[actividad]
 
-            total_kcal = 0
-            total_p = 0
-            total_g = 0
-            total_c = 0
-            total_f = 0
+        calorias_objetivo = tdee
 
-            # Sumar alimentos del diario
-            if user in diary:
+        st.header("Dashboard")
 
-                for item in diary[user]:
+        # Progreso calorías
 
-                    f = foods[item["food"]]
-                    q = item["cantidad"]
+        st.subheader("Calorías")
 
-                    total_kcal += f["calorias"] * q
-                    total_p += f["proteinas"] * q
-                    total_g += f["grasas"] * q
-                    total_c += f["carbs"] * q
-                    total_f += f["fibra"] * q
+        st.write(f"{round(total_kcal)} / {round(calorias_objetivo)} kcal")
 
-            # Calcular metabolismo basal (Mifflin St Jeor)
+        st.progress(min(total_kcal/calorias_objetivo,1.0))
 
-            if sexo == "Hombre":
-                bmr = 10*peso + 6.25*altura - 5*edad + 5
-            else:
-                bmr = 10*peso + 6.25*altura - 5*edad - 161
+        # Objetivos de macros
 
-            # Factor de actividad
+        proteina_obj = peso * 2
+        grasa_obj = peso * 0.8
+        carb_obj = (calorias_objetivo - (proteina_obj*4 + grasa_obj*9)) / 4
+        fibra_obj = 30
 
-            factores = {
-                "Sedentario":1.2,
-                "Ligero":1.375,
-                "Moderado":1.55,
-                "Activo":1.725,
-                "Muy activo":1.9
-            }
+        st.subheader("Macros")
 
-            tdee = bmr * factores[actividad]
+        st.write(f"Proteínas: {round(total_p)} / {round(proteina_obj)} g")
+        st.progress(min(total_p/proteina_obj,1.0))
 
-            calorias_objetivo = tdee
+        st.write(f"Grasas: {round(total_g)} / {round(grasa_obj)} g")
+        st.progress(min(total_g/grasa_obj,1.0))
 
-            st.header("Dashboard")
+        st.write(f"Carbohidratos: {round(total_c)} / {round(carb_obj)} g")
+        st.progress(min(total_c/carb_obj,1.0))
 
-            # Progreso calorías
-
-            st.subheader("Calorías")
-
-            st.write(f"{round(total_kcal)} / {round(calorias_objetivo)} kcal")
-
-            st.progress(min(total_kcal/calorias_objetivo,1.0))
-
-            # Objetivos de macros
-
-            proteina_obj = peso * 2
-            grasa_obj = peso * 0.8
-            carb_obj = (calorias_objetivo - (proteina_obj*4 + grasa_obj*9)) / 4
-            fibra_obj = 30
-
-            st.subheader("Macros")
-
-            st.write(f"Proteínas: {round(total_p)} / {round(proteina_obj)} g")
-            st.progress(min(total_p/proteina_obj,1.0))
-
-            st.write(f"Grasas: {round(total_g)} / {round(grasa_obj)} g")
-            st.progress(min(total_g/grasa_obj,1.0))
-
-            st.write(f"Carbohidratos: {round(total_c)} / {round(carb_obj)} g")
-            st.progress(min(total_c/carb_obj,1.0))
-
-            st.write(f"Fibra: {round(total_f)} / {fibra_obj} g")
-            st.progress(min(total_f/fibra_obj,1.0))
+        st.write(f"Fibra: {round(total_f)} / {fibra_obj} g")
+        st.progress(min(total_f/fibra_obj,1.0))
 
 elif menu == "Alimentos":
 
