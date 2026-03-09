@@ -1,31 +1,21 @@
+import streamlit as st
 import json
 import os
-import streamlit as st
 
-def calcular_bmr(sexo, peso, altura, edad):
-    if sexo == "Hombre":
-        return 10*peso + 6.25*altura - 5*edad + 5
-    else:
-        return 10*peso + 6.25*altura - 5*edad - 161
-        
+st.set_page_config(page_title="Mis Macros", layout="centered")
+
+# -----------------------
+# FUNCIONES DE ARCHIVOS
+# -----------------------
+
 def load_users():
     if os.path.exists("users.json"):
         with open("users.json","r") as f:
             return json.load(f)
     return {}
 
-def save_users(users):
+def save_users(data):
     with open("users.json","w") as f:
-        json.dump(users,f)
-
-def load_profiles():
-    if os.path.exists("profiles.json"):
-        with open("profiles.json","r") as f:
-            return json.load(f)
-    return {}
-
-def save_profiles(data):
-    with open("profiles.json","w") as f:
         json.dump(data,f)
 
 def load_foods():
@@ -47,44 +37,104 @@ def load_diary():
 def save_diary(data):
     with open("diary.json","w") as f:
         json.dump(data,f)
-        
-st.set_page_config(page_title="Mis Macros")
 
-st.title("Mis Macros")
+# -----------------------
+# MENU
+# -----------------------
 
 menu = st.sidebar.selectbox(
     "Menú",
-    ["Login","Registro","Dashboard","Alimentos","Diario"]
+    ["Login","Registro","Perfil","Dashboard","Alimentos","Diario"]
 )
 
-users = load_users()
+# -----------------------
+# REGISTRO
+# -----------------------
 
-if menu == "Login":
+if menu == "Registro":
+
+    st.header("Registro")
+
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Crear cuenta"):
+
+        users = load_users()
+
+        if email in users:
+            st.error("El usuario ya existe")
+        else:
+            users[email] = {"password":password}
+            save_users(users)
+            st.success("Cuenta creada")
+
+# -----------------------
+# LOGIN
+# -----------------------
+
+elif menu == "Login":
+
     st.header("Login")
 
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if st.button("Entrar"):
-        if email in users and users[email] == password:
+
+        users = load_users()
+
+        if email in users and users[email]["password"] == password:
             st.session_state["user"] = email
             st.success("Login correcto")
         else:
-            st.error("Usuario o contraseña incorrectos")
+            st.error("Credenciales incorrectas")
 
-elif menu == "Registro":
-    st.header("Crear cuenta")
+# -----------------------
+# PERFIL
+# -----------------------
 
-    email = st.text_input("Nuevo email")
-    password = st.text_input("Nueva contraseña", type="password")
+elif menu == "Perfil":
 
-    if st.button("Registrar"):
-        if email in users:
-            st.error("El usuario ya existe")
-        else:
-            users[email] = password
+    if "user" not in st.session_state:
+        st.warning("Debes iniciar sesión")
+
+    else:
+
+        st.header("Perfil")
+
+        peso = st.number_input("Peso (kg)",0.0)
+        altura = st.number_input("Altura (cm)",0.0)
+        edad = st.number_input("Edad",0)
+
+        sexo = st.selectbox(
+            "Sexo",
+            ["Hombre","Mujer"]
+        )
+
+        actividad = st.selectbox(
+            "Nivel actividad",
+            ["Sedentario","Ligero","Moderado","Activo","Muy activo"]
+        )
+
+        if st.button("Guardar perfil"):
+
+            users = load_users()
+            user = st.session_state["user"]
+
+            users[user]["peso"] = peso
+            users[user]["altura"] = altura
+            users[user]["edad"] = edad
+            users[user]["sexo"] = sexo
+            users[user]["actividad"] = actividad
+
             save_users(users)
-            st.success("Cuenta creada")
+
+            st.success("Perfil guardado")
+
+# -----------------------
+# DASHBOARD
+# -----------------------
 
 elif menu == "Dashboard":
 
@@ -97,15 +147,16 @@ elif menu == "Dashboard":
 
         users = load_users()
 
-        profile = users[user]
+        if "peso" not in users[user]:
+            st.warning("Completa primero tu perfil")
+            st.stop()
 
-        peso = profile["peso"]
-        altura = profile["altura"]
-        edad = profile["edad"]
-        sexo = profile["sexo"]
-        actividad = profile["actividad"]
+        peso = users[user]["peso"]
+        altura = users[user]["altura"]
+        edad = users[user]["edad"]
+        sexo = users[user]["sexo"]
+        actividad = users[user]["actividad"]
 
-        # Cargar datos de alimentos y diario
         foods = load_foods()
         diary = load_diary()
 
@@ -115,7 +166,6 @@ elif menu == "Dashboard":
         total_c = 0
         total_f = 0
 
-        # Sumar alimentos del diario
         if user in diary:
 
             for item in diary[user]:
@@ -129,14 +179,12 @@ elif menu == "Dashboard":
                 total_c += f["carbs"] * q
                 total_f += f["fibra"] * q
 
-        # Calcular metabolismo basal (Mifflin St Jeor)
+        # BMR
 
         if sexo == "Hombre":
             bmr = 10*peso + 6.25*altura - 5*edad + 5
         else:
             bmr = 10*peso + 6.25*altura - 5*edad - 161
-
-        # Factor de actividad
 
         factores = {
             "Sedentario":1.2,
@@ -148,23 +196,19 @@ elif menu == "Dashboard":
 
         tdee = bmr * factores[actividad]
 
-        calorias_objetivo = tdee
+        calorias_obj = tdee
 
         st.header("Dashboard")
 
-        # Progreso calorías
-
         st.subheader("Calorías")
 
-        st.write(f"{round(total_kcal)} / {round(calorias_objetivo)} kcal")
+        st.write(f"{round(total_kcal)} / {round(calorias_obj)} kcal")
 
-        st.progress(min(total_kcal/calorias_objetivo,1.0))
-
-        # Objetivos de macros
+        st.progress(min(total_kcal/calorias_obj,1.0))
 
         proteina_obj = peso * 2
         grasa_obj = peso * 0.8
-        carb_obj = (calorias_objetivo - (proteina_obj*4 + grasa_obj*9)) / 4
+        carb_obj = (calorias_obj - (proteina_obj*4 + grasa_obj*9)) / 4
         fibra_obj = 30
 
         st.subheader("Macros")
@@ -181,25 +225,30 @@ elif menu == "Dashboard":
         st.write(f"Fibra: {round(total_f)} / {fibra_obj} g")
         st.progress(min(total_f/fibra_obj,1.0))
 
+# -----------------------
+# ALIMENTOS
+# -----------------------
+
 elif menu == "Alimentos":
 
     if "user" not in st.session_state:
         st.warning("Debes iniciar sesión")
-    else:
 
-        foods = load_foods()
+    else:
 
         st.header("Añadir alimento")
 
         nombre = st.text_input("Nombre alimento")
-        calorias = st.number_input("Calorías (kcal)",0)
-        
-        proteinas = st.number_input("Proteínas (g)",0.0)
-        grasas = st.number_input("Grasas (g)",0.0)
-        carbs = st.number_input("Carbohidratos (g)",0.0)
-        fibra = st.number_input("Fibra (g)",0.0)
+
+        calorias = st.number_input("Calorías",0)
+        proteinas = st.number_input("Proteínas",0.0)
+        grasas = st.number_input("Grasas",0.0)
+        carbs = st.number_input("Carbohidratos",0.0)
+        fibra = st.number_input("Fibra",0.0)
 
         if st.button("Guardar alimento"):
+
+            foods = load_foods()
 
             foods[nombre] = {
                 "calorias":calorias,
@@ -213,10 +262,15 @@ elif menu == "Alimentos":
 
             st.success("Alimento guardado")
 
+# -----------------------
+# DIARIO
+# -----------------------
+
 elif menu == "Diario":
 
     if "user" not in st.session_state:
         st.warning("Debes iniciar sesión")
+
     else:
 
         foods = load_foods()
@@ -226,9 +280,19 @@ elif menu == "Diario":
 
         st.header("Registro diario")
 
-        alimento = st.selectbox("Seleccionar alimento", list(foods.keys()))
+        if len(foods) == 0:
+            st.warning("Primero añade alimentos")
+            st.stop()
 
-        cantidad = st.number_input("Cantidad (porciones)",0.0,10.0,1.0)
+        alimento = st.selectbox(
+            "Seleccionar alimento",
+            list(foods.keys())
+        )
+
+        cantidad = st.number_input(
+            "Cantidad (porciones)",
+            0.0,10.0,1.0
+        )
 
         if st.button("Añadir comida"):
 
@@ -243,32 +307,3 @@ elif menu == "Diario":
             save_diary(diary)
 
             st.success("Comida añadida")
-
-        if user in diary:
-
-            total_kcal = 0
-            total_p = 0
-            total_g = 0
-            total_c = 0
-            total_f = 0
-
-            for item in diary[user]:
-
-                f = foods[item["food"]]
-                q = item["cantidad"]
-
-                total_kcal += f["calorias"]*q
-                total_p += f["proteinas"]*q
-                total_g += f["grasas"]*q
-                total_c += f["carbs"]*q
-                total_f += f["fibra"]*q
-
-            st.subheader("Totales del día")
-
-            st.write("Calorías:",round(total_kcal),"kcal")
-            
-            st.write("Proteínas:",round(total_p))
-            st.write("Grasas:",round(total_g))
-            st.write("Carbohidratos:",round(total_c))
-            st.write("Fibra:",round(total_f))
-            
