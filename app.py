@@ -27,6 +27,26 @@ def load_profiles():
 def save_profiles(data):
     with open("profiles.json","w") as f:
         json.dump(data,f)
+
+def load_foods():
+    if os.path.exists("foods.json"):
+        with open("foods.json","r") as f:
+            return json.load(f)
+    return {}
+
+def save_foods(data):
+    with open("foods.json","w") as f:
+        json.dump(data,f)
+
+def load_diary():
+    if os.path.exists("diary.json"):
+        with open("diary.json","r") as f:
+            return json.load(f)
+    return {}
+
+def save_diary(data):
+    with open("diary.json","w") as f:
+        json.dump(data,f)
         
 st.set_page_config(page_title="Mis Macros")
 
@@ -34,7 +54,7 @@ st.title("Mis Macros")
 
 menu = st.sidebar.selectbox(
     "Menú",
-    ["Login", "Registro", "Dashboard"]
+    ["Login","Registro","Dashboard","Alimentos","Diario"]
 )
 
 users = load_users()
@@ -125,3 +145,95 @@ elif menu == "Dashboard":
             st.write("Proteínas:", p["proteinas"],"g")
             st.write("Grasas:", p["grasas"],"g")
             st.write("Carbohidratos:", p["carbs"],"g")
+
+elif menu == "Alimentos":
+
+    if "user" not in st.session_state:
+        st.warning("Debes iniciar sesión")
+    else:
+
+        foods = load_foods()
+
+        st.header("Añadir alimento")
+
+        nombre = st.text_input("Nombre alimento")
+        calorias = st.number_input("Calorías (kcal)",0)
+        
+        proteinas = st.number_input("Proteínas (g)",0.0)
+        grasas = st.number_input("Grasas (g)",0.0)
+        carbs = st.number_input("Carbohidratos (g)",0.0)
+        fibra = st.number_input("Fibra (g)",0.0)
+
+        if st.button("Guardar alimento"):
+
+            foods[nombre] = {
+                "calorias":calorias,
+                "proteinas":proteinas,
+                "grasas":grasas,
+                "carbs":carbs,
+                "fibra":fibra
+            }
+
+            save_foods(foods)
+
+            st.success("Alimento guardado")
+
+elif menu == "Diario":
+
+    if "user" not in st.session_state:
+        st.warning("Debes iniciar sesión")
+    else:
+
+        foods = load_foods()
+        diary = load_diary()
+
+        user = st.session_state["user"]
+
+        st.header("Registro diario")
+
+        alimento = st.selectbox("Seleccionar alimento", list(foods.keys()))
+
+        cantidad = st.number_input("Cantidad (porciones)",0.0,10.0,1.0)
+
+        if st.button("Añadir comida"):
+
+            if user not in diary:
+                diary[user] = []
+
+            diary[user].append({
+                "food":alimento,
+                "cantidad":cantidad
+            })
+
+            save_diary(diary)
+
+            st.success("Comida añadida")
+
+        if user in diary:
+
+            total_kcal = 0
+            total_p = 0
+            total_g = 0
+            total_c = 0
+            total_f = 0
+
+            for item in diary[user]:
+
+                f = foods[item["food"]]
+                q = item["cantidad"]
+
+                total_kcal += f["calorias"]*q
+                total_p += f["proteinas"]*q
+                total_g += f["grasas"]*q
+                total_c += f["carbs"]*q
+                total_f += f["fibra"]*q
+
+            st.subheader("Totales del día")
+
+            st.write("Calorías:",round(total_kcal),"kcal")
+            
+            st.write("Proteínas:",round(total_p))
+            st.write("Grasas:",round(total_g))
+            st.write("Carbohidratos:",round(total_c))
+            st.write("Fibra:",round(total_f))
+            
