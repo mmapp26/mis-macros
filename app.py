@@ -276,10 +276,9 @@ elif menu == "Diario":
 
     else:
 
+        user = st.session_state["user"]
         foods = load_foods()
         diary = load_diary()
-
-        user = st.session_state["user"]
 
         st.header("Registro diario")
 
@@ -287,26 +286,45 @@ elif menu == "Diario":
             st.warning("Primero añade alimentos")
             st.stop()
 
-        alimento = st.selectbox(
-            "Seleccionar alimento",
-            list(foods.keys())
-        )
+        # Selector de fecha
+        from datetime import date
+        fecha = st.date_input("Fecha", value=date.today()).isoformat()
 
-        cantidad = st.number_input(
-            "Cantidad (porciones)",
-            0.0,10.0,1.0
-        )
+        # Inicializar la fecha si no existe
+        if user not in diary:
+            diary[user] = {}
+        if fecha not in diary[user]:
+            diary[user][fecha] = []
 
+        # Seleccionar alimento
+        alimento = st.selectbox("Seleccionar alimento", list(foods.keys()))
+
+        cantidad = st.number_input("Cantidad (porciones)", 0.0, 10.0, 1.0)
+
+        # Botón para añadir comida
         if st.button("Añadir comida"):
 
-            if user not in diary:
-                diary[user] = []
-
-            diary[user].append({
-                "food":alimento,
-                "cantidad":cantidad
+            diary[user][fecha].append({
+                "food": alimento,
+                "cantidad": cantidad
             })
 
             save_diary(diary)
+            st.success(f"{alimento} añadido al {fecha}")
 
-            st.success("Comida añadida")
+        # Mostrar lista de alimentos del día
+        st.subheader(f"Alimentos registrados - {fecha}")
+        if len(diary[user][fecha]) == 0:
+            st.info("No hay alimentos registrados para este día")
+        else:
+            for i, item in enumerate(diary[user][fecha]):
+                col1, col2, col3 = st.columns([4,2,2])
+                with col1:
+                    st.write(f"{item['food']}")
+                with col2:
+                    st.write(f"{item['cantidad']}")
+                with col3:
+                    if st.button(f"Eliminar {i}"):
+                        diary[user][fecha].pop(i)
+                        save_diary(diary)
+                        st.experimental_rerun()
