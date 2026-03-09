@@ -90,69 +90,82 @@ elif menu == "Dashboard":
 
     if "user" not in st.session_state:
         st.warning("Debes iniciar sesión")
+
     else:
 
-        profiles = load_profiles()
         user = st.session_state["user"]
 
-        st.header("Tu perfil")
+        users = load_users()
 
-        sexo = st.selectbox("Sexo", ["Hombre","Mujer"])
-        edad = st.number_input("Edad", 10, 100)
-        peso = st.number_input("Peso (kg)", 30.0, 200.0)
-        altura = st.number_input("Altura (cm)", 120, 220)
+        if "profile" not in users[user]:
+            st.warning("Primero completa tu perfil")
+        else:
 
-        actividad = st.selectbox(
-            "Nivel de actividad",
-            ["Sedentario","Ligero","Moderado","Alto"]
-        )
+            profile = users[user]["profile"]
 
-        if st.button("Guardar perfil"):
+            peso = profile["peso"]
+            altura = profile["altura"]
+            edad = profile["edad"]
+            sexo = profile["sexo"]
+            actividad = profile["actividad"]
 
-            bmr = calcular_bmr(sexo,peso,altura,edad)
-
-            factores = {
-                "Sedentario":1.2,
-                "Ligero":1.375,
-                "Moderado":1.55,
-                "Alto":1.725
-            }
-
-            calorias = bmr * factores[actividad]
-
-            proteinas = peso * 2
-            grasas = peso * 0.8
-            carbs = (calorias - (proteinas*4 + grasas*9)) / 4
-
-            profiles[user] = {
-                "calorias": round(calorias),
-                "proteinas": round(proteinas),
-                "grasas": round(grasas),
-                "carbs": round(carbs)
-            }
-
-            calorias_objetivo = tdee
-            st.success("Perfil guardado")
-            save_profiles(profiles)
-            
+            # Cargar datos de alimentos y diario
             foods = load_foods()
             diary = load_diary()
-
-            user = st.session_state["user"]
 
             total_kcal = 0
             total_p = 0
             total_g = 0
             total_c = 0
             total_f = 0
-            
-            save_profiles(profiles)
 
-            st.subheader("Progreso del día")
+            # Sumar alimentos del diario
+            if user in diary:
 
-            st.write(f"Calorías: {round(total_kcal)} / {round(calorias_objetivo)} kcal")
+                for item in diary[user]:
+
+                    f = foods[item["food"]]
+                    q = item["cantidad"]
+
+                    total_kcal += f["calorias"] * q
+                    total_p += f["proteinas"] * q
+                    total_g += f["grasas"] * q
+                    total_c += f["carbs"] * q
+                    total_f += f["fibra"] * q
+
+            # Calcular metabolismo basal (Mifflin St Jeor)
+
+            if sexo == "Hombre":
+                bmr = 10*peso + 6.25*altura - 5*edad + 5
+            else:
+                bmr = 10*peso + 6.25*altura - 5*edad - 161
+
+            # Factor de actividad
+
+            factores = {
+                "Sedentario":1.2,
+                "Ligero":1.375,
+                "Moderado":1.55,
+                "Activo":1.725,
+                "Muy activo":1.9
+            }
+
+            tdee = bmr * factores[actividad]
+
+            calorias_objetivo = tdee
+
+            st.header("Dashboard")
+
+            # Progreso calorías
+
+            st.subheader("Calorías")
+
+            st.write(f"{round(total_kcal)} / {round(calorias_objetivo)} kcal")
 
             st.progress(min(total_kcal/calorias_objetivo,1.0))
+
+            # Objetivos de macros
+
             proteina_obj = peso * 2
             grasa_obj = peso * 0.8
             carb_obj = (calorias_objetivo - (proteina_obj*4 + grasa_obj*9)) / 4
@@ -162,39 +175,15 @@ elif menu == "Dashboard":
 
             st.write(f"Proteínas: {round(total_p)} / {round(proteina_obj)} g")
             st.progress(min(total_p/proteina_obj,1.0))
-            
+
             st.write(f"Grasas: {round(total_g)} / {round(grasa_obj)} g")
             st.progress(min(total_g/grasa_obj,1.0))
-            
+
             st.write(f"Carbohidratos: {round(total_c)} / {round(carb_obj)} g")
             st.progress(min(total_c/carb_obj,1.0))
-            
+
             st.write(f"Fibra: {round(total_f)} / {fibra_obj} g")
             st.progress(min(total_f/fibra_obj,1.0))
-
-        if user in diary:
-
-            for item in diary[user]:
-
-                f = foods[item["food"]]
-                q = item["cantidad"]
-
-                total_kcal += f["calorias"] * q
-                total_p += f["proteinas"] * q
-                total_g += f["grasas"] * q
-                total_c += f["carbs"] * q
-                total_f += f["fibra"] * q
-                
-        if user in profiles:
-
-            p = profiles[user]
-
-            st.subheader("Tus objetivos diarios")
-
-            st.write("Calorías:", p["calorias"])
-            st.write("Proteínas:", p["proteinas"],"g")
-            st.write("Grasas:", p["grasas"],"g")
-            st.write("Carbohidratos:", p["carbs"],"g")
 
 elif menu == "Alimentos":
 
