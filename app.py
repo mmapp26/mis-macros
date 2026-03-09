@@ -86,18 +86,18 @@ elif menu == "Login":
 
         if email in users:
 
-    # Si users[email] no es un diccionario (por seguridad), lo convertimos
-    if not isinstance(users[email], dict):
-        users[email] = {}
+            # Si users[email] no es un diccionario (por seguridad), lo convertimos
+            if not isinstance(users[email], dict):
+                users[email] = {}
 
-    if users[email].get("password") == password:
-        st.session_state["user"] = email
-        st.success("Login correcto")
-    else:
-        st.error("Credenciales incorrectas")
-
-else:
-    st.error("Usuario no registrado")
+            if users[email].get("password") == password:
+                st.session_state["user"] = email
+                st.success("Login correcto")
+            else:
+                st.error("Credenciales incorrectas")
+        
+        else:
+            st.error("Usuario no registrado")
 
 # -----------------------
 # PERFIL
