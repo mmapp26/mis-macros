@@ -1,327 +1,163 @@
 import streamlit as st
-import json
 import os
+import json
+from datetime import date
 
-st.set_page_config(page_title="Mis Macros", layout="centered")
+# -----------------------------
+# RUTAS Y JSON
+# -----------------------------
+USERS_FILE = "users.json"
+FOODS_FILE = "foods.json"
+DIARY_FILE = "diary.json"
 
-# -----------------------
-# FUNCIONES DE ARCHIVOS
-# -----------------------
+def init_json(file_path, default_data):
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            json.dump(default_data, f)
 
+# Inicializar JSON si no existen
+init_json(USERS_FILE, {})
+init_json(FOODS_FILE, {})
+init_json(DIARY_FILE, {})
+
+# -----------------------------
+# FUNCIONES DE CARGA Y GUARDADO
+# -----------------------------
 def load_users():
-    if os.path.exists("users.json"):
-        with open("users.json","r") as f:
-            return json.load(f)
-    return {}
+    with open(USERS_FILE, "r") as f:
+        return json.load(f)
 
-def save_users(data):
-    with open("users.json","w") as f:
-        json.dump(data,f)
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=4)
 
 def load_foods():
-    if os.path.exists("foods.json"):
-        with open("foods.json","r") as f:
-            return json.load(f)
-    return {}
+    with open(FOODS_FILE, "r") as f:
+        return json.load(f)
 
-def save_foods(data):
-    with open("foods.json","w") as f:
-        json.dump(data,f)
+def save_foods(foods):
+    with open(FOODS_FILE, "w") as f:
+        json.dump(foods, f, indent=4)
 
 def load_diary():
-    if os.path.exists("diary.json"):
-        with open("diary.json","r") as f:
-            return json.load(f)
-    return {}
+    with open(DIARY_FILE, "r") as f:
+        return json.load(f)
 
-def save_diary(data):
-    with open("diary.json","w") as f:
-        json.dump(data,f)
+def save_diary(diary):
+    with open(DIARY_FILE, "w") as f:
+        json.dump(diary, f, indent=4)
 
-# -----------------------
-# MENU
-# -----------------------
+# -----------------------------
+# SESIÓN
+# -----------------------------
+if "user" not in st.session_state:
+    st.session_state["user"] = None
 
-menu = st.sidebar.selectbox(
-    "Menú",
-    ["Login","Registro","Perfil","Dashboard","Alimentos","Diario"]
-)
+# -----------------------------
+# MENÚ PRINCIPAL
+# -----------------------------
+menu = st.sidebar.selectbox("Menú", ["Login", "Registro", "Perfil", "Diario"])
 
-# -----------------------
-# REGISTRO
-# -----------------------
-
-if menu == "Registro":
-
-    st.header("Registro")
-
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Crear cuenta"):
-
-        users = load_users()
-
-        if email in users:
-            st.error("El usuario ya existe")
-        else:
-            users[email] = {"password":password}
-            save_users(users)
-            st.success("Cuenta creada")
-
-# -----------------------
+# -----------------------------
 # LOGIN
-# -----------------------
-
-elif menu == "Login":
-
+# -----------------------------
+if menu == "Login":
     st.header("Login")
-
     email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+    password = st.text_input("Contraseña", type="password")
 
     if st.button("Entrar"):
-
         users = load_users()
 
         if email in users:
-
-            # Si users[email] no es un diccionario (por seguridad), lo convertimos
             if not isinstance(users[email], dict):
                 users[email] = {}
-
             if users[email].get("password") == password:
                 st.session_state["user"] = email
                 st.success("Login correcto")
             else:
-                st.error("Credenciales incorrectas")
-        
+                st.error("Contraseña incorrecta")
         else:
             st.error("Usuario no registrado")
 
-# -----------------------
+# -----------------------------
+# REGISTRO
+# -----------------------------
+elif menu == "Registro":
+    st.header("Registro de usuario")
+    email = st.text_input("Email")
+    password = st.text_input("Contraseña", type="password")
+
+    if st.button("Registrar"):
+        users = load_users()
+        if email in users:
+            st.warning("El usuario ya existe")
+        else:
+            users[email] = {"password": password}
+            save_users(users)
+            st.success("Usuario registrado correctamente")
+
+# -----------------------------
 # PERFIL
-# -----------------------
-
+# -----------------------------
 elif menu == "Perfil":
-
-    if "user" not in st.session_state:
-        st.warning("Debes iniciar sesión")
-
+    if st.session_state["user"] is None:
+        st.warning("Primero inicia sesión")
     else:
-
         st.header("Perfil")
+        user = st.session_state["user"]
+        users = load_users()
+        if not isinstance(users.get(user), dict):
+            users[user] = {}
 
-        peso = st.number_input("Peso (kg)",0.0)
-        altura = st.number_input("Altura (cm)",0.0)
-        edad = st.number_input("Edad",0)
-
-        sexo = st.selectbox(
-            "Sexo",
-            ["Hombre","Mujer"]
-        )
-
-        actividad = st.selectbox(
-            "Nivel actividad",
-            ["Sedentario","Ligero","Moderado","Activo","Muy activo"]
-        )
+        peso = st.number_input("Peso (kg)", value=users[user].get("peso", 70))
+        altura = st.number_input("Altura (cm)", value=users[user].get("altura", 170))
+        edad = st.number_input("Edad", value=users[user].get("edad", 30))
+        sexo = st.selectbox("Sexo", ["Hombre", "Mujer"], index=0 if users[user].get("sexo","Hombre")=="Hombre" else 1)
+        actividad = st.selectbox("Nivel de actividad", ["Sedentaria", "Ligera", "Moderada", "Alta", "Muy alta"], index=0)
 
         if st.button("Guardar perfil"):
-
-            users = load_users()
-            user = st.session_state["user"]
-
-            if not isinstance(users.get(user), dict):
-                users[user] = {}
-
             users[user]["peso"] = peso
             users[user]["altura"] = altura
             users[user]["edad"] = edad
             users[user]["sexo"] = sexo
             users[user]["actividad"] = actividad
-
             save_users(users)
             st.success("Perfil guardado")
-        
 
-# -----------------------
-# DASHBOARD
-# -----------------------
-
-elif menu == "Dashboard":
-
-    if "user" not in st.session_state:
-        st.warning("Debes iniciar sesión")
-
-    else:
-
-        user = st.session_state["user"]
-
-        users = load_users()
-
-        if "peso" not in users[user]:
-            st.warning("Completa primero tu perfil")
-            st.stop()
-
-        peso = users[user]["peso"]
-        altura = users[user]["altura"]
-        edad = users[user]["edad"]
-        sexo = users[user]["sexo"]
-        actividad = users[user]["actividad"]
-
-        foods = load_foods()
-        diary = load_diary()
-
-        total_kcal = 0
-        total_p = 0
-        total_g = 0
-        total_c = 0
-        total_f = 0
-
-        if user in diary:
-
-            for item in diary[user]:
-
-                f = foods[item["food"]]
-                q = item["cantidad"]
-
-                total_kcal += f["calorias"] * q
-                total_p += f["proteinas"] * q
-                total_g += f["grasas"] * q
-                total_c += f["carbs"] * q
-                total_f += f["fibra"] * q
-
-        # BMR
-
-        if sexo == "Hombre":
-            bmr = 10*peso + 6.25*altura - 5*edad + 5
-        else:
-            bmr = 10*peso + 6.25*altura - 5*edad - 161
-
-        factores = {
-            "Sedentario":1.2,
-            "Ligero":1.375,
-            "Moderado":1.55,
-            "Activo":1.725,
-            "Muy activo":1.9
-        }
-
-        tdee = bmr * factores[actividad]
-
-        calorias_obj = tdee
-
-        st.header("Dashboard")
-
-        st.subheader("Calorías")
-
-        st.write(f"{round(total_kcal)} / {round(calorias_obj)} kcal")
-
-        st.progress(min(total_kcal/calorias_obj,1.0))
-
-        proteina_obj = peso * 2
-        grasa_obj = peso * 0.8
-        carb_obj = (calorias_obj - (proteina_obj*4 + grasa_obj*9)) / 4
-        fibra_obj = 30
-
-        st.subheader("Macros")
-
-        st.write(f"Proteínas: {round(total_p)} / {round(proteina_obj)} g")
-        st.progress(min(total_p/proteina_obj,1.0))
-
-        st.write(f"Grasas: {round(total_g)} / {round(grasa_obj)} g")
-        st.progress(min(total_g/grasa_obj,1.0))
-
-        st.write(f"Carbohidratos: {round(total_c)} / {round(carb_obj)} g")
-        st.progress(min(total_c/carb_obj,1.0))
-
-        st.write(f"Fibra: {round(total_f)} / {fibra_obj} g")
-        st.progress(min(total_f/fibra_obj,1.0))
-
-# -----------------------
-# ALIMENTOS
-# -----------------------
-
-elif menu == "Alimentos":
-
-    if "user" not in st.session_state:
-        st.warning("Debes iniciar sesión")
-
-    else:
-
-        st.header("Añadir alimento")
-
-        nombre = st.text_input("Nombre alimento")
-
-        calorias = st.number_input("Calorías",0)
-        proteinas = st.number_input("Proteínas",0.0)
-        grasas = st.number_input("Grasas",0.0)
-        carbs = st.number_input("Carbohidratos",0.0)
-        fibra = st.number_input("Fibra",0.0)
-
-        if st.button("Guardar alimento"):
-
-            foods = load_foods()
-
-            foods[nombre] = {
-                "calorias":calorias,
-                "proteinas":proteinas,
-                "grasas":grasas,
-                "carbs":carbs,
-                "fibra":fibra
-            }
-
-            save_foods(foods)
-
-            st.success("Alimento guardado")
-
-# -----------------------
+# -----------------------------
 # DIARIO
-# -----------------------
-
+# -----------------------------
 elif menu == "Diario":
-
-    if "user" not in st.session_state:
-        st.warning("Debes iniciar sesión")
-
+    if st.session_state["user"] is None:
+        st.warning("Primero inicia sesión")
     else:
-
+        st.header("Registro diario")
         user = st.session_state["user"]
         foods = load_foods()
         diary = load_diary()
 
-        st.header("Registro diario")
-
-        if len(foods) == 0:
-            st.warning("Primero añade alimentos")
-            st.stop()
-
-        # Selector de fecha
-        from datetime import date
-        fecha = st.date_input("Fecha", value=date.today()).isoformat()
-
-        # Inicializar la fecha si no existe
+        # Inicializar estructuras si no existen
         if user not in diary:
             diary[user] = {}
+
+        # Selector de fecha
+        fecha = st.date_input("Fecha", value=date.today()).isoformat()
         if fecha not in diary[user]:
             diary[user][fecha] = []
 
-        # Seleccionar alimento
-        alimento = st.selectbox("Seleccionar alimento", list(foods.keys()))
+        # Añadir alimento
+        if len(foods) == 0:
+            st.warning("Primero añade alimentos")
+        else:
+            alimento = st.selectbox("Seleccionar alimento", list(foods.keys()))
+            cantidad = st.number_input("Cantidad (porciones)", 0.0, 10.0, 1.0)
+            if st.button("Añadir comida"):
+                diary[user][fecha].append({"food": alimento, "cantidad": cantidad})
+                save_diary(diary)
+                st.success(f"{alimento} añadido al {fecha}")
 
-        cantidad = st.number_input("Cantidad (porciones)", 0.0, 10.0, 1.0)
-
-        # Botón para añadir comida
-        if st.button("Añadir comida"):
-
-            diary[user][fecha].append({
-                "food": alimento,
-                "cantidad": cantidad
-            })
-
-            save_diary(diary)
-            st.success(f"{alimento} añadido al {fecha}")
-
-        # Mostrar lista de alimentos del día
+        # Mostrar alimentos del día
         st.subheader(f"Alimentos registrados - {fecha}")
         if len(diary[user][fecha]) == 0:
             st.info("No hay alimentos registrados para este día")
