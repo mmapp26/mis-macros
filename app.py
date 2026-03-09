@@ -122,6 +122,9 @@ elif menu == "Perfil":
             users = load_users()
             user = st.session_state["user"]
 
+            if not isinstance(users.get(user), dict):
+                users[user] = {}
+
             users[user]["peso"] = peso
             users[user]["altura"] = altura
             users[user]["edad"] = edad
@@ -129,8 +132,8 @@ elif menu == "Perfil":
             users[user]["actividad"] = actividad
 
             save_users(users)
-
             st.success("Perfil guardado")
+        
 
 # -----------------------
 # DASHBOARD
