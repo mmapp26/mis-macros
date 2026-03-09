@@ -131,10 +131,60 @@ elif menu == "Dashboard":
                 "carbs": round(carbs)
             }
 
+            calorias_objetivo = tdee
+            st.success("Perfil guardado")
+            save_profiles(profiles)
+            
+            foods = load_foods()
+            diary = load_diary()
+
+            user = st.session_state["user"]
+
+            total_kcal = 0
+            total_p = 0
+            total_g = 0
+            total_c = 0
+            total_f = 0
+            
             save_profiles(profiles)
 
-            st.success("Perfil guardado")
+            st.subheader("Progreso del día")
 
+            st.write(f"Calorías: {round(total_kcal)} / {round(calorias_objetivo)} kcal")
+
+            st.progress(min(total_kcal/calorias_objetivo,1.0))
+            proteina_obj = peso * 2
+            grasa_obj = peso * 0.8
+            carb_obj = (calorias_objetivo - (proteina_obj*4 + grasa_obj*9)) / 4
+            fibra_obj = 30
+
+            st.subheader("Macros")
+
+            st.write(f"Proteínas: {round(total_p)} / {round(proteina_obj)} g")
+            st.progress(min(total_p/proteina_obj,1.0))
+            
+            st.write(f"Grasas: {round(total_g)} / {round(grasa_obj)} g")
+            st.progress(min(total_g/grasa_obj,1.0))
+            
+            st.write(f"Carbohidratos: {round(total_c)} / {round(carb_obj)} g")
+            st.progress(min(total_c/carb_obj,1.0))
+            
+            st.write(f"Fibra: {round(total_f)} / {fibra_obj} g")
+            st.progress(min(total_f/fibra_obj,1.0))
+
+        if user in diary:
+
+            for item in diary[user]:
+
+                f = foods[item["food"]]
+                q = item["cantidad"]
+
+                total_kcal += f["calorias"] * q
+                total_p += f["proteinas"] * q
+                total_g += f["grasas"] * q
+                total_c += f["carbs"] * q
+                total_f += f["fibra"] * q
+                
         if user in profiles:
 
             p = profiles[user]
